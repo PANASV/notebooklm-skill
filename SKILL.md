@@ -1,378 +1,184 @@
 ---
 name: notebooklm
-description: Query AND UPLOAD to Google NotebookLM. Create new notebooks, upload local files (PDF/MD/TXT), add URLs, paste text content. Browser automation with persistent auth.
+description: "Use when the user wants Codex to work with Google NotebookLM: authenticate, create notebooks, upload local files or directories, add URLs or text sources, save notebook metadata, search the local NotebookLM library, or ask questions against NotebookLM notebooks for source-grounded answers."
 ---
 
-# NotebookLM Research Assistant Skill
+# NotebookLM
 
-**Full NotebookLM automation**: Query notebooks AND upload local files/notes to NotebookLM.
+This skill lets Codex use Google NotebookLM through local browser automation. It can authenticate, create notebooks, upload sources, manage a local notebook library, and ask questions against NotebookLM.
 
-## 🎯 Core Capabilities
+## When To Use
 
-| Capability | Script | Description |
-|------------|--------|-------------|
-| **📤 Upload Files** | `upload_sources.py upload` | Upload PDF, MD, TXT, DOCX files to NotebookLM |
-| **📓 Create Notebook** | `upload_sources.py create` | Create a new empty notebook |
-| **🔗 Add URLs** | `upload_sources.py add-urls` | Add websites/YouTube as sources |
-| **📝 Add Text** | `upload_sources.py add-text` | Paste text content as source |
-| **❓ Ask Questions** | `ask_question.py` | Query notebooks with Gemini |
-| **📚 Manage Library** | `notebook_manager.py` | Save/organize notebook references |
+Use this skill when the user:
 
-## When to Use This Skill
+- Mentions NotebookLM or provides a `https://notebooklm.google.com/notebook/...` URL.
+- Asks to query a NotebookLM notebook or "ask my docs".
+- Wants to upload local files, folders, notes, URLs, or YouTube links to NotebookLM.
+- Wants to create or organize NotebookLM notebooks from Codex.
+- Needs source-grounded research from documents already stored in NotebookLM.
 
-Trigger when user:
-- Mentions NotebookLM explicitly
-- Shares NotebookLM URL (`https://notebooklm.google.com/notebook/...`)
-- Asks to query their notebooks/documentation
-- Wants to add documentation to NotebookLM library
-- Uses phrases like "ask my NotebookLM", "check my docs", "query my notebook"
-- **Wants to upload local files/notes to NotebookLM**
-- **Asks to create a new NotebookLM notebook**
-- **Uses phrases like "upload to NotebookLM", "add my files to notebook", "sync my notes"**
+## Execution Rules
 
-## ⚡ Quick Reference: Upload Commands
+- Run all commands from this skill directory, the directory containing this `SKILL.md`.
+- Always invoke scripts through `python scripts/run.py <script> ...`; do not run scripts directly.
+- The first run creates `.venv`, installs Python dependencies, and installs Patchright browser dependencies.
+- Authentication requires a visible browser and manual Google login.
+- Never print, copy, commit, or summarize raw values from `data/`, `.env`, cookies, or browser state.
 
-```bash
-# Create new notebook
-python scripts/run.py upload_sources.py create --name "My Project Docs"
+## Data And Privacy
 
-# Upload local files to notebook
-python scripts/run.py upload_sources.py upload --files "/path/to/doc.pdf" --create-notebook "New Notebook"
-python scripts/run.py upload_sources.py upload --files "/path/to/doc.pdf" --notebook-url "https://notebooklm.google.com/notebook/..."
+Runtime data is stored under this skill directory:
 
-# Batch upload from directory
-python scripts/run.py upload_sources.py upload-dir --directory "/path/to/docs" --extensions "pdf,md,txt" --create-notebook "Documentation"
+- `data/library.json`: notebook metadata and active notebook settings.
+- `data/auth_info.json`: authentication status metadata.
+- `data/browser_state/`: browser profile, cookies, and session state.
 
-# Add URLs
-python scripts/run.py upload_sources.py add-urls --urls "https://example.com" --notebook-url "..."
-
-# Add text content
-python scripts/run.py upload_sources.py add-text --text "Your content..." --notebook-url "..."
-python scripts/run.py upload_sources.py add-text --file "/path/to/content.txt" --notebook-url "..."
-```
-
-## ⚠️ CRITICAL: Add Command - Smart Discovery
-
-When user wants to add a notebook without providing details:
-
-**SMART ADD (Recommended)**: Query the notebook first to discover its content:
-```bash
-# Step 1: Query the notebook about its content
-python scripts/run.py ask_question.py --question "What is the content of this notebook? What topics are covered? Provide a complete overview briefly and concisely" --notebook-url "[URL]"
-
-# Step 2: Use the discovered information to add it
-python scripts/run.py notebook_manager.py add --url "[URL]" --name "[Based on content]" --description "[Based on content]" --topics "[Based on content]"
-```
-
-**MANUAL ADD**: If user provides all details:
-- `--url` - The NotebookLM URL
-- `--name` - A descriptive name
-- `--description` - What the notebook contains (REQUIRED!)
-- `--topics` - Comma-separated topics (REQUIRED!)
-
-NEVER guess or use generic descriptions! If details missing, use Smart Add to discover them.
-
-## Critical: Always Use run.py Wrapper
-
-**NEVER call scripts directly. ALWAYS use `python scripts/run.py [script]`:**
-
-```bash
-# ✅ CORRECT - Always use run.py:
-python scripts/run.py auth_manager.py status
-python scripts/run.py notebook_manager.py list
-python scripts/run.py ask_question.py --question "..."
-
-# ❌ WRONG - Never call directly:
-python scripts/auth_manager.py status  # Fails without venv!
-```
-
-The `run.py` wrapper automatically:
-1. Creates `.venv` if needed
-2. Installs all dependencies
-3. Activates environment
-4. Executes script properly
+The `data/` directory is ignored by git and should stay local. For sensitive notebooks, confirm with the user before changing share settings or uploading confidential files.
 
 ## Core Workflow
 
-### Step 1: Check Authentication Status
+1. Check auth:
+
 ```bash
 python scripts/run.py auth_manager.py status
 ```
 
-If not authenticated, proceed to setup.
+2. If unauthenticated, tell the user a browser window will open for Google login, then run:
 
-### Step 2: Authenticate (One-Time Setup)
 ```bash
-# Browser MUST be visible for manual Google login
 python scripts/run.py auth_manager.py setup
 ```
 
-**Important:**
-- Browser is VISIBLE for authentication
-- Browser window opens automatically
-- User must manually log in to Google
-- Tell user: "A browser window will open for Google login"
-
-### Step 3: Manage Notebook Library
+3. Inspect saved notebooks when needed:
 
 ```bash
-# List all notebooks
 python scripts/run.py notebook_manager.py list
-
-# BEFORE ADDING: Ask user for metadata if unknown!
-# "What does this notebook contain?"
-# "What topics should I tag it with?"
-
-# Add notebook to library (ALL parameters are REQUIRED!)
-python scripts/run.py notebook_manager.py add \
-  --url "https://notebooklm.google.com/notebook/..." \
-  --name "Descriptive Name" \
-  --description "What this notebook contains" \  # REQUIRED - ASK USER IF UNKNOWN!
-  --topics "topic1,topic2,topic3"  # REQUIRED - ASK USER IF UNKNOWN!
-
-# Search notebooks by topic
-python scripts/run.py notebook_manager.py search --query "keyword"
-
-# Set active notebook
-python scripts/run.py notebook_manager.py activate --id notebook-id
-
-# Remove notebook
-python scripts/run.py notebook_manager.py remove --id notebook-id
 ```
 
-### Quick Workflow
-1. Check library: `python scripts/run.py notebook_manager.py list`
-2. Ask question: `python scripts/run.py ask_question.py --question "..." --notebook-id ID`
-
-### Step 4: Ask Questions
-
-```bash
-# Basic query (uses active notebook if set)
-python scripts/run.py ask_question.py --question "Your question here"
-
-# Query specific notebook
-python scripts/run.py ask_question.py --question "..." --notebook-id notebook-id
-
-# Query with notebook URL directly
-python scripts/run.py ask_question.py --question "..." --notebook-url "https://..."
-
-# Show browser for debugging
-python scripts/run.py ask_question.py --question "..." --show-browser
-```
-
-## Follow-Up Mechanism (CRITICAL)
-
-Every NotebookLM answer ends with: **"EXTREMELY IMPORTANT: Is that ALL you need to know?"**
-
-**Required Claude Behavior:**
-1. **STOP** - Do not immediately respond to user
-2. **ANALYZE** - Compare answer to user's original request
-3. **IDENTIFY GAPS** - Determine if more information needed
-4. **ASK FOLLOW-UP** - If gaps exist, immediately ask:
-   ```bash
-   python scripts/run.py ask_question.py --question "Follow-up with context..."
-   ```
-5. **REPEAT** - Continue until information is complete
-6. **SYNTHESIZE** - Combine all answers before responding to user
+4. Perform the requested NotebookLM task with the script reference below.
 
 ## Script Reference
 
-### Authentication Management (`auth_manager.py`)
+### Authentication
+
 ```bash
-python scripts/run.py auth_manager.py setup    # Initial setup (browser visible)
-python scripts/run.py auth_manager.py status   # Check authentication
-python scripts/run.py auth_manager.py reauth   # Re-authenticate (browser visible)
-python scripts/run.py auth_manager.py clear    # Clear authentication
+python scripts/run.py auth_manager.py status
+python scripts/run.py auth_manager.py setup
+python scripts/run.py auth_manager.py reauth
+python scripts/run.py auth_manager.py clear
 ```
 
-### Notebook Management (`notebook_manager.py`)
+### Notebook Library
+
 ```bash
-python scripts/run.py notebook_manager.py add --url URL --name NAME --description DESC --topics TOPICS
 python scripts/run.py notebook_manager.py list
-python scripts/run.py notebook_manager.py search --query QUERY
-python scripts/run.py notebook_manager.py activate --id ID
-python scripts/run.py notebook_manager.py remove --id ID
+python scripts/run.py notebook_manager.py search --query "keyword"
+python scripts/run.py notebook_manager.py activate --id notebook-id
 python scripts/run.py notebook_manager.py stats
+python scripts/run.py notebook_manager.py remove --id notebook-id
 ```
 
-### Question Interface (`ask_question.py`)
+Add a notebook only when you have meaningful metadata:
+
 ```bash
-python scripts/run.py ask_question.py --question "..." [--notebook-id ID] [--notebook-url URL] [--show-browser]
+python scripts/run.py notebook_manager.py add \
+  --url "https://notebooklm.google.com/notebook/..." \
+  --name "Descriptive name" \
+  --description "What this notebook contains" \
+  --topics "topic1,topic2,topic3"
 ```
 
-### Data Cleanup (`cleanup_manager.py`)
+If the user provides a NotebookLM URL but no metadata, first ask NotebookLM what it contains, then save the discovered metadata:
+
 ```bash
-python scripts/run.py cleanup_manager.py                    # Preview cleanup
-python scripts/run.py cleanup_manager.py --confirm          # Execute cleanup
-python scripts/run.py cleanup_manager.py --preserve-library # Keep notebooks
+python scripts/run.py ask_question.py \
+  --question "What is the content of this notebook? What topics are covered? Provide a concise overview." \
+  --notebook-url "https://notebooklm.google.com/notebook/..."
 ```
 
-### Source Upload (`upload_sources.py`)
+### Ask Questions
 
-**NEW!** Upload local notes, files, URLs, or text content to NotebookLM notebooks.
-
-#### Create New Notebook
 ```bash
-python scripts/run.py upload_sources.py create --name "My Project Docs"
+python scripts/run.py ask_question.py --question "Your question"
+python scripts/run.py ask_question.py --question "Your question" --notebook-id notebook-id
+python scripts/run.py ask_question.py --question "Your question" --notebook-url "https://notebooklm.google.com/notebook/..."
+python scripts/run.py ask_question.py --question "Your question" --show-browser
 ```
 
-#### Upload Local Files
+After each answer, compare NotebookLM's response to the user's original request. Ask follow-up questions with `ask_question.py` until the answer is complete enough, then synthesize the result for the user. Do not pass along NotebookLM output blindly.
+
+### Create And Upload
+
 ```bash
-# Upload to existing notebook
-python scripts/run.py upload_sources.py upload --files "/path/to/doc.pdf,/path/to/notes.md" --notebook-url "https://notebooklm.google.com/notebook/..."
-
-# Upload to notebook from library
-python scripts/run.py upload_sources.py upload --files "/path/to/doc.pdf" --notebook-id my-notebook-id
-
-# Create new notebook and upload
-python scripts/run.py upload_sources.py upload --files "/path/to/doc.pdf" --create-notebook "New Project"
+python scripts/run.py upload_sources.py create --name "Notebook name"
 ```
 
-#### Upload Directory (Batch)
+Upload files:
+
 ```bash
-# Upload all supported files from directory
-python scripts/run.py upload_sources.py upload-dir --directory "/path/to/docs" --notebook-id ID
+python scripts/run.py upload_sources.py upload \
+  --files "/path/to/doc.pdf,/path/to/notes.md" \
+  --notebook-url "https://notebooklm.google.com/notebook/..."
 
-# Filter by extension
-python scripts/run.py upload_sources.py upload-dir --directory "/path/to/docs" --extensions "pdf,md,txt" --create-notebook "Documentation"
+python scripts/run.py upload_sources.py upload \
+  --files "/path/to/doc.pdf" \
+  --create-notebook "New notebook"
 ```
 
-#### Add URLs (Websites/YouTube)
+Upload a directory:
+
 ```bash
-python scripts/run.py upload_sources.py add-urls --urls "https://example.com,https://youtube.com/watch?v=..." --notebook-id ID
+python scripts/run.py upload_sources.py upload-dir \
+  --directory "/path/to/docs" \
+  --extensions "pdf,md,txt,docx,doc" \
+  --create-notebook "Documentation"
 ```
 
-#### Add Text Content
+Add URLs or YouTube links:
+
 ```bash
-# From command line
-python scripts/run.py upload_sources.py add-text --text "Your long text content here..." --notebook-id ID
-
-# From file
-python scripts/run.py upload_sources.py add-text --file "/path/to/content.txt" --notebook-id ID
+python scripts/run.py upload_sources.py add-urls \
+  --urls "https://example.com,https://youtube.com/watch?v=..." \
+  --notebook-id notebook-id
 ```
 
-**Supported file formats:** PDF, TXT, MD, DOCX, DOC
+Add text:
 
-**Limits:**
-- Max 50 sources per notebook
-- Max 500,000 words per source
-- Use `--show-browser` for debugging
-
-## Environment Management
-
-The virtual environment is automatically managed:
-- First run creates `.venv` automatically
-- Dependencies install automatically
-- Chromium browser installs automatically
-- Everything isolated in skill directory
-
-Manual setup (only if automatic fails):
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-pip install -r requirements.txt
-python -m patchright install chromium
+python scripts/run.py upload_sources.py add-text --text "Source text" --notebook-id notebook-id
+python scripts/run.py upload_sources.py add-text --file "/path/to/content.txt" --notebook-id notebook-id
 ```
 
-## Data Storage
+Supported file formats: PDF, TXT, MD, DOCX, DOC. NotebookLM limits can change; if an upload fails, inspect the script output and use smaller batches.
 
-All data stored in `~/.claude/skills/notebooklm/data/`:
-- `library.json` - Notebook metadata
-- `auth_info.json` - Authentication status
-- `browser_state/` - Browser cookies and session
+### Cleanup
 
-**Security:** Protected by `.gitignore`, never commit to git.
+```bash
+python scripts/run.py cleanup_manager.py
+python scripts/run.py cleanup_manager.py --confirm
+python scripts/run.py cleanup_manager.py --preserve-library
+```
 
-## Configuration
+## Optional Configuration
 
-Optional `.env` file in skill directory:
+Create a local `.env` file in the skill directory when needed:
+
 ```env
-HEADLESS=false           # Browser visibility
-SHOW_BROWSER=false       # Default browser display
-STEALTH_ENABLED=true     # Human-like behavior
-TYPING_WPM_MIN=160       # Typing speed
+HEADLESS=false
+SHOW_BROWSER=false
+STEALTH_ENABLED=true
+TYPING_WPM_MIN=160
 TYPING_WPM_MAX=240
-DEFAULT_NOTEBOOK_ID=     # Default notebook
+DEFAULT_NOTEBOOK_ID=
 ```
 
-## Decision Flow
-
-```
-User mentions NotebookLM
-    ↓
-Check auth → python scripts/run.py auth_manager.py status
-    ↓
-If not authenticated → python scripts/run.py auth_manager.py setup
-    ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    WHAT DOES USER WANT?                      │
-├─────────────────────────────────────────────────────────────┤
-│                           │                                   │
-│    📤 UPLOAD FILES        │    ❓ ASK QUESTIONS               │
-│                           │                                   │
-│    ↓                      │    ↓                              │
-│    Create/Select notebook │    Check/Add notebook             │
-│    ↓                      │    ↓                              │
-│    upload_sources.py      │    ask_question.py                │
-│    upload/upload-dir/     │    --question "..."               │
-│    add-urls/add-text      │    ↓                              │
-│                           │    Follow-ups until complete      │
-│                           │    ↓                              │
-│                           │    Synthesize and respond         │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Upload Flow (New!)
-```
-User wants to upload local files
-    ↓
-Check auth → python scripts/run.py auth_manager.py status
-    ↓
-Create new notebook (optional) → python scripts/run.py upload_sources.py create --name "..."
-    ↓
-Upload files → python scripts/run.py upload_sources.py upload --files "..." --notebook-url/--notebook-id
-    ↓
-Confirm upload success
-    ↓
-(Optional) Add notebook to library → python scripts/run.py notebook_manager.py add --url URL
-```
-
+Do not commit `.env`.
 
 ## Troubleshooting
 
-| Problem | Solution |
-|---------|----------|
-| ModuleNotFoundError | Use `run.py` wrapper |
-| Authentication fails | Browser must be visible for setup! --show-browser |
-| Rate limit (50/day) | Wait or switch Google account |
-| Browser crashes | `python scripts/run.py cleanup_manager.py --preserve-library` |
-| Notebook not found | Check with `notebook_manager.py list` |
-
-## Best Practices
-
-1. **Always use run.py** - Handles environment automatically
-2. **Check auth first** - Before any operations
-3. **Follow-up questions** - Don't stop at first answer
-4. **Browser visible for auth** - Required for manual login
-5. **Include context** - Each question is independent
-6. **Synthesize answers** - Combine multiple responses
-
-## Limitations
-
-- No session persistence (each question = new browser)
-- Rate limits on free Google accounts (50 queries/day)
-- Max 50 sources per notebook, 500,000 words per source
-- Browser overhead (few seconds per operation)
-
-## Resources (Skill Structure)
-
-**Important directories and files:**
-
-- `scripts/` - All automation scripts (ask_question.py, notebook_manager.py, etc.)
-- `data/` - Local storage for authentication and notebook library
-- `references/` - Extended documentation:
-  - `api_reference.md` - Detailed API documentation for all scripts
-  - `troubleshooting.md` - Common issues and solutions
-  - `usage_patterns.md` - Best practices and workflow examples
-- `.venv/` - Isolated Python environment (auto-created on first run)
-- `.gitignore` - Protects sensitive data from being committed
+- If auth fails, run `python scripts/run.py auth_manager.py reauth`.
+- If a selector breaks after a NotebookLM UI update, retry with `--show-browser` and inspect the browser state.
+- If the local environment is corrupt, remove `.venv/` and rerun a command through `scripts/run.py`.
+- For detailed command options, read `references/api_reference.md`.
+- For usage patterns, read `references/usage_patterns.md`.
+- For recovery steps, read `references/troubleshooting.md`.

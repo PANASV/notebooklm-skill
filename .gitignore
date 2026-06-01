@@ -9,9 +9,11 @@ data/
 data/*
 data/**/*
 
-# Claude-specific
+# Agent-specific local state
 .claude/
 *.claude
+.codex-local/
+*.codex-local
 
 # Python
 __pycache__/

@@ -98,7 +98,7 @@ python scripts/run.py auth_manager.py status
 # run.py will install Chromium automatically
 
 # Or manual install if needed
-cd ~/.claude/skills/notebooklm
+cd ~/.codex/skills/notebooklm
 source .venv/bin/activate
 python -m patchright install chromium
 ```
@@ -220,10 +220,10 @@ JSON decode error when listing notebooks
 **Solution:**
 ```bash
 # Backup current library
-cp ~/.claude/skills/notebooklm/data/library.json library.backup.json
+cp ~/.codex/skills/notebooklm/data/library.json library.backup.json
 
 # Reset library
-rm ~/.claude/skills/notebooklm/data/library.json
+rm ~/.codex/skills/notebooklm/data/library.json
 
 # Re-add notebooks
 python scripts/run.py notebook_manager.py add --url ... --name ...
@@ -233,7 +233,7 @@ python scripts/run.py notebook_manager.py add --url ... --name ...
 **Solution:**
 ```bash
 # Check disk usage
-df -h ~/.claude/skills/notebooklm/data/
+df -h ~/.codex/skills/notebooklm/data/
 
 # Clean up
 python scripts/run.py cleanup_manager.py --confirm --preserve-library
@@ -279,12 +279,12 @@ except Exception as e:
 pkill -f chromium
 
 # Backup library if exists
-if [ -f ~/.claude/skills/notebooklm/data/library.json ]; then
-    cp ~/.claude/skills/notebooklm/data/library.json ~/library.backup.json
+if [ -f ~/.codex/skills/notebooklm/data/library.json ]; then
+    cp ~/.codex/skills/notebooklm/data/library.json ~/library.backup.json
 fi
 
 # Clean everything
-cd ~/.claude/skills/notebooklm
+cd ~/.codex/skills/notebooklm
 python scripts/run.py cleanup_manager.py --confirm --force
 
 # Remove venv
@@ -295,15 +295,15 @@ python scripts/run.py auth_manager.py setup
 
 # Restore library if backup exists
 if [ -f ~/library.backup.json ]; then
-    mkdir -p ~/.claude/skills/notebooklm/data/
-    cp ~/library.backup.json ~/.claude/skills/notebooklm/data/library.json
+    mkdir -p ~/.codex/skills/notebooklm/data/
+    cp ~/library.backup.json ~/.codex/skills/notebooklm/data/library.json
 fi
 ```
 
 ### Partial recovery (keep data)
 ```bash
 # Keep auth and library, fix execution
-cd ~/.claude/skills/notebooklm
+cd ~/.codex/skills/notebooklm
 rm -rf .venv
 
 # run.py will recreate venv automatically
@@ -350,7 +350,7 @@ python scripts/run.py auth_manager.py status
 ```bash
 # System info
 python --version
-cd ~/.claude/skills/notebooklm
+cd ~/.codex/skills/notebooklm
 ls -la
 
 # Skill status
@@ -358,13 +358,13 @@ python scripts/run.py auth_manager.py status
 python scripts/run.py notebook_manager.py list | head -5
 
 # Check data directory
-ls -la ~/.claude/skills/notebooklm/data/
+ls -la ~/.codex/skills/notebooklm/data/
 ```
 
 ### Common questions
 
-**Q: Why doesn't this work in Claude web UI?**
-A: Web UI has no network access. Use local Claude Code.
+**Q: Why doesn't this work in Codex web UI?**
+A: Web UI has no network access. Use local Codex.
 
 **Q: Can I use multiple Google accounts?**
 A: Yes, use `run.py auth_manager.py reauth` to switch.

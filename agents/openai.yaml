@@ -1,0 +1,8 @@
+interface:
+  display_name: "NotebookLM"
+  short_description: "Query and manage Google NotebookLM notebooks"
+  brand_color: "#1A73E8"
+  default_prompt: "Use $notebooklm to ask my NotebookLM notebook a source-grounded question."
+
+policy:
+  allow_implicit_invocation: true
